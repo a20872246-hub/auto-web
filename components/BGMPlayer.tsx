@@ -23,6 +23,9 @@ interface YTPlayer {
   getVolume(): number;
   getPlayerState(): number;
   getVideoData(): { title: string };
+  getCurrentTime(): number;
+  getDuration(): number;
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
   nextVideo(): void;
   previousVideo(): void;
   destroy(): void;
@@ -37,12 +40,24 @@ interface BGMPlayerProps {
   setCurrentTitle: (v: string) => void;
 }
 
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentTitle, setCurrentTitle }: BGMPlayerProps) {
   const { settings, updateBGMSettings } = useStore();
   const [isReady, setIsReady] = useState(false);
   const [volume, setVolumeState] = useState(settings.bgm.volume);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [urlInput, setUrlInput] = useState('');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekValue, setSeekValue] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const playlist = settings.bgm.playlist;
@@ -57,10 +72,24 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
         onReady: () => setIsReady(true),
         onStateChange: (e: { data: number }) => {
           const YT = window.YT;
-          setIsPlaying(e.data === YT.PlayerState.PLAYING);
-          if (e.data === YT.PlayerState.PLAYING) {
+          const playing = e.data === YT.PlayerState.PLAYING;
+          setIsPlaying(playing);
+          if (playing) {
             const data = playerRef.current?.getVideoData();
             setCurrentTitle(data?.title || '재생 중...');
+            // Start progress polling
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = setInterval(() => {
+              const ct = playerRef.current?.getCurrentTime() ?? 0;
+              const dur = playerRef.current?.getDuration() ?? 0;
+              setCurrentTime(ct);
+              setDuration(dur);
+            }, 500);
+          } else {
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
           }
           if (e.data === YT.PlayerState.ENDED) {
             // Auto-advance playlist
@@ -119,6 +148,12 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
   const handleStop = () => {
     playerRef.current?.stopVideo();
     setCurrentTitle('');
+    setCurrentTime(0);
+    setDuration(0);
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
   };
 
   const handleNext = () => {
@@ -233,6 +268,45 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
           className="flex-1 accent-green-500"
         />
         <span className="text-slate-400 text-sm w-8 text-right">{volume}%</span>
+      </div>
+
+      {/* Progress bar */}
+      <div className="flex flex-col gap-1">
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          step={1}
+          value={isSeeking ? seekValue : currentTime}
+          disabled={!isPlaying && duration === 0}
+          onChange={(e) => {
+            setIsSeeking(true);
+            setSeekValue(Number(e.target.value));
+          }}
+          onMouseUp={(e) => {
+            const val = Number((e.target as HTMLInputElement).value);
+            playerRef.current?.seekTo(val, true);
+            setCurrentTime(val);
+            setIsSeeking(false);
+          }}
+          onTouchEnd={(e) => {
+            const val = Number((e.target as HTMLInputElement).value);
+            playerRef.current?.seekTo(val, true);
+            setCurrentTime(val);
+            setIsSeeking(false);
+          }}
+          className="w-full accent-green-500 disabled:opacity-30 cursor-pointer"
+          style={{
+            background:
+              duration > 0
+                ? `linear-gradient(to right, #22c55e ${((isSeeking ? seekValue : currentTime) / duration) * 100}%, #334155 0%)`
+                : '#334155',
+          }}
+        />
+        <div className="flex justify-between text-xs text-slate-500 tabular-nums">
+          <span>{formatTime(isSeeking ? seekValue : currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
       </div>
 
       {/* Quick URL input */}

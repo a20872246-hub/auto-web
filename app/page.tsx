@@ -17,6 +17,9 @@ interface YTPlayer {
   getVolume(): number;
   getPlayerState(): number;
   getVideoData(): { title: string };
+  getCurrentTime(): number;
+  getDuration(): number;
+  seekTo(seconds: number, allowSeekAhead: boolean): void;
   nextVideo(): void;
   previousVideo(): void;
   destroy(): void;

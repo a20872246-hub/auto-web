@@ -1,12 +1,17 @@
 'use client';
 
-import { useRef, useState, useCallback, useEffect } from 'react';
-import Link from 'next/link';
+import { useRef, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { BGMPlayer } from '@/components/BGMPlayer';
 import { AnnouncementPanel } from '@/components/AnnouncementPanel';
 import { ScheduleStatus } from '@/components/ScheduleStatus';
+import { AnnouncementsTab } from '@/components/tabs/AnnouncementsTab';
+import { SchedulesTab } from '@/components/tabs/SchedulesTab';
+import { PlaylistTab } from '@/components/tabs/PlaylistTab';
+import { SettingsTab } from '@/components/tabs/SettingsTab';
 import { useStore } from '@/lib/store';
 import type { Announcement } from '@/lib/types';
+
+type Tab = 'control' | 'announcements' | 'schedules' | 'playlist' | 'settings';
 
 interface YTPlayer {
   playVideo(): void;
@@ -37,6 +42,7 @@ export default function Home() {
   const [currentTitle, setCurrentTitle] = useState('');
   const [isAnnouncing, setIsAnnouncing] = useState(false);
   const [lastAnnouncement, setLastAnnouncement] = useState('');
+  const [activeTab, setActiveTab] = useState<Tab>('control');
   const firedRef = useRef<FiredEntry[]>([]);
 
   // Smooth volume fade
@@ -160,51 +166,94 @@ export default function Home() {
     }
   }, []);
 
+  const TABS = [
+    { id: 'control',       icon: '🎮', label: '제어판' },
+    { id: 'announcements', icon: '📢', label: '안내방송' },
+    { id: 'schedules',     icon: '🕐', label: '스케줄' },
+    { id: 'playlist',      icon: '🎵', label: '재생목록' },
+    { id: 'settings',      icon: '⚙️', label: '설정' },
+  ] as const;
+
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-slate-900">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between shrink-0">
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-sm font-bold text-black">
+          <div className="w-9 h-9 bg-green-500 rounded-xl flex items-center justify-center text-xs font-bold text-black">
             ITN
           </div>
           <div>
-            <h1 className="text-lg font-bold leading-tight">ITN Fitness</h1>
+            <h1 className="text-base font-bold leading-tight">ITN Fitness</h1>
             <p className="text-xs text-slate-400 leading-tight">안내방송 시스템</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          {isAnnouncing && (
-            <div className="flex items-center gap-2 text-sm text-blue-400">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
-              방송 중: {lastAnnouncement}
-            </div>
-          )}
-          <Link
-            href="/admin"
-            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
-          >
-            ⚙️ 관리
-          </Link>
-        </div>
+        {isAnnouncing && (
+          <div className="flex items-center gap-2 text-sm text-blue-400">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
+            방송 중: {lastAnnouncement}
+          </div>
+        )}
       </header>
 
-      {/* Main content — fills remaining height */}
-      <main className="flex-1 min-h-0 px-6 py-5">
-        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-7xl mx-auto">
-          <BGMPlayer
-            onDuck={handleDuck}
-            playerRef={playerRef}
-            isPlaying={isPlaying}
-            setIsPlaying={setIsPlaying}
-            currentTitle={currentTitle}
-            setCurrentTitle={setCurrentTitle}
-          />
-          <AnnouncementPanel onAnnounce={handleAnnounce} isAnnouncing={isAnnouncing} />
+      {/* Tab bar */}
+      <nav className="bg-slate-800 border-b border-slate-700 px-2 shrink-0">
+        <div className="flex overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-green-500 text-green-400'
+                  : 'border-transparent text-slate-400 hover:text-white'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {/* Content */}
+      <main className="flex-1 min-h-0 overflow-hidden">
+        {/* 제어판 */}
+        <div className={`h-full px-5 py-4 ${activeTab === 'control' ? 'flex' : 'hidden'}`}>
+          <div className="h-full w-full grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-7xl mx-auto">
+            <BGMPlayer
+              onDuck={handleDuck}
+              playerRef={playerRef}
+              isPlaying={isPlaying}
+              setIsPlaying={setIsPlaying}
+              currentTitle={currentTitle}
+              setCurrentTitle={setCurrentTitle}
+            />
+            <AnnouncementPanel onAnnounce={handleAnnounce} isAnnouncing={isAnnouncing} />
+          </div>
+        </div>
+
+        {/* 안내방송 관리 */}
+        <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'announcements' ? 'block' : 'hidden'}`}>
+          <AnnouncementsTab />
+        </div>
+
+        {/* 스케줄 */}
+        <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'schedules' ? 'block' : 'hidden'}`}>
+          <SchedulesTab />
+        </div>
+
+        {/* 재생목록 */}
+        <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'playlist' ? 'block' : 'hidden'}`}>
+          <PlaylistTab />
+        </div>
+
+        {/* 설정 */}
+        <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
+          <SettingsTab />
         </div>
       </main>
 
-      {/* Schedule status bar */}
+      {/* Schedule status bar — always visible */}
       <ScheduleStatus onScheduleFire={handleScheduleFire} firedRef={firedRef} />
     </div>
   );

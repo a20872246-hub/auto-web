@@ -57,6 +57,9 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
   const [duration, setDuration] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [dragOver, setDragOver] = useState<number | null>(null);
+  const dragIndexRef = useRef<number | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -334,69 +337,152 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
 
       {/* Playlist */}
       {playlist.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 flex-1 min-h-0">
+          {/* Header */}
+          <div className="flex items-center justify-between shrink-0">
             <span className="text-xs text-slate-400 font-medium">재생목록 ({playlist.length}곡)</span>
-            <button
-              onClick={() => {
-                const { setPlaylist } = useStore.getState();
-                setPlaylist([]);
-              }}
-              className="text-xs text-slate-500 hover:text-red-400 transition-colors"
-            >전체 삭제</button>
+            <div className="flex items-center gap-3">
+              {selected.size > 0 && (
+                <button
+                  onClick={() => {
+                    const { setPlaylist } = useStore.getState();
+                    const next = playlist.filter((_, i) => !selected.has(i));
+                    // adjust currentIndex
+                    const removedBefore = [...selected].filter(i => i < currentIndex).length;
+                    setCurrentIndex(Math.max(0, currentIndex - removedBefore));
+                    setPlaylist(next);
+                    setSelected(new Set());
+                  }}
+                  className="text-xs bg-red-600/30 hover:bg-red-600/50 text-red-400 px-2 py-0.5 rounded-md transition-colors"
+                >
+                  선택 삭제 ({selected.size})
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (selected.size === playlist.length) {
+                    setSelected(new Set());
+                  } else {
+                    setSelected(new Set(playlist.map((_, i) => i)));
+                  }
+                }}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {selected.size === playlist.length ? '전체 해제' : '전체 선택'}
+              </button>
+            </div>
           </div>
-          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+
+          {/* List */}
+          <div className="flex flex-col gap-1 overflow-y-auto pr-1 flex-1 min-h-0">
             {playlist.map((url, idx) => {
               const videoId = extractVideoId(url);
               const isActive = idx === currentIndex;
+              const isSelected = selected.has(idx);
+              const isDragTarget = dragOver === idx;
+
               return (
-                <button
+                <div
                   key={idx}
-                  onClick={() => {
-                    if (!isReady || !playerRef.current) return;
-                    setCurrentIndex(idx);
-                    const vid = extractVideoId(url);
-                    if (vid) {
-                      playerRef.current.loadVideoById(vid);
-                      playerRef.current.playVideo();
-                    }
+                  draggable
+                  onDragStart={() => { dragIndexRef.current = idx; }}
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(idx); }}
+                  onDragLeave={() => setDragOver(null)}
+                  onDrop={() => {
+                    const from = dragIndexRef.current;
+                    if (from === null || from === idx) { setDragOver(null); return; }
+                    const { setPlaylist } = useStore.getState();
+                    const next = [...playlist];
+                    const [moved] = next.splice(from, 1);
+                    next.splice(idx, 0, moved);
+                    setPlaylist(next);
+                    // update currentIndex
+                    if (currentIndex === from) setCurrentIndex(idx);
+                    else if (from < currentIndex && idx >= currentIndex) setCurrentIndex(currentIndex - 1);
+                    else if (from > currentIndex && idx <= currentIndex) setCurrentIndex(currentIndex + 1);
+                    // update selected
+                    setSelected((prev) => {
+                      const arr = [...prev].map(i => {
+                        if (i === from) return idx;
+                        if (from < idx && i > from && i <= idx) return i - 1;
+                        if (from > idx && i < from && i >= idx) return i + 1;
+                        return i;
+                      });
+                      return new Set(arr);
+                    });
+                    dragIndexRef.current = null;
+                    setDragOver(null);
                   }}
-                  className={`flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors group ${
-                    isActive
+                  onDragEnd={() => { dragIndexRef.current = null; setDragOver(null); }}
+                  className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer select-none transition-all group ${
+                    isDragTarget
+                      ? 'border-2 border-green-500 bg-green-500/10'
+                      : isSelected
+                      ? 'bg-blue-600/20 border border-blue-600/40'
+                      : isActive
                       ? 'bg-green-600/20 border border-green-600/40'
                       : 'bg-slate-900/40 hover:bg-slate-700/60 border border-transparent'
                   }`}
                 >
-                  <div className={`shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
-                    isActive ? 'bg-green-500 text-black' : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600'
-                  }`}>
+                  {/* Drag handle */}
+                  <span className="shrink-0 text-slate-600 group-hover:text-slate-400 cursor-grab active:cursor-grabbing text-base leading-none px-0.5">
+                    ⠿
+                  </span>
+
+                  {/* Checkbox */}
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        next.has(idx) ? next.delete(idx) : next.add(idx);
+                        return next;
+                      });
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-3.5 h-3.5 accent-blue-500 shrink-0 cursor-pointer"
+                  />
+
+                  {/* Play button / index */}
+                  <button
+                    onClick={() => {
+                      if (!isReady || !playerRef.current) return;
+                      setCurrentIndex(idx);
+                      const vid = extractVideoId(url);
+                      if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                    }}
+                    className={`shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-colors ${
+                      isActive ? 'bg-green-500 text-black' : 'bg-slate-700 text-slate-400 hover:bg-green-600 hover:text-white'
+                    }`}
+                  >
                     {isActive && isPlaying ? '♪' : idx + 1}
-                  </div>
-                  {videoId ? (
+                  </button>
+
+                  {/* Thumbnail */}
+                  {videoId && (
                     <img
                       src={`https://img.youtube.com/vi/${videoId}/default.jpg`}
                       alt=""
                       className="w-10 h-7 rounded object-cover shrink-0"
                       onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
-                  ) : null}
-                  <span className={`text-xs truncate flex-1 ${isActive ? 'text-green-300' : 'text-slate-300'}`}>
+                  )}
+
+                  {/* Title */}
+                  <span
+                    className={`text-xs truncate flex-1 ${isActive ? 'text-green-300' : 'text-slate-300'}`}
+                    onClick={() => {
+                      if (!isReady || !playerRef.current) return;
+                      setCurrentIndex(idx);
+                      const vid = extractVideoId(url);
+                      if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                    }}
+                  >
                     {isActive && currentTitle ? currentTitle : (videoId ? `youtu.be/${videoId}` : url)}
                   </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const { setPlaylist } = useStore.getState();
-                      const next = playlist.filter((_, i) => i !== idx);
-                      setPlaylist(next);
-                      if (isActive && next.length > 0) {
-                        const newIdx = Math.min(idx, next.length - 1);
-                        setCurrentIndex(newIdx);
-                      }
-                    }}
-                    className="shrink-0 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-sm px-1"
-                  >✕</button>
-                </button>
+                </div>
               );
             })}
           </div>

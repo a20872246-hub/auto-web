@@ -209,7 +209,7 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 flex flex-col gap-4">
+    <div className="bg-slate-800 rounded-xl p-6 flex flex-col gap-4 h-full">
       <div ref={containerRef} className="absolute opacity-0 pointer-events-none w-px h-px overflow-hidden">
         <div id="yt-player" />
       </div>

@@ -74,32 +74,37 @@ export default function Home() {
     });
   }, [settings.tts]);
 
-  // Get best Korean voice
-  const getKoreanVoice = useCallback((targetVoice: string): SpeechSynthesisVoice | null => {
-    const voices = window.speechSynthesis.getVoices();
-    const exact = voices.find((v) => v.name === targetVoice);
-    if (exact) return exact;
-    const korean = voices.find((v) => v.lang === 'ko-KR');
-    if (korean) return korean;
-    const ko = voices.find((v) => v.lang.startsWith('ko'));
-    return ko || null;
+  // TTS speak — Microsoft Azure Neural TTS via API route
+  const speakTTS = useCallback(async (text: string, voice: string, rate: number): Promise<void> => {
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, voice, rate }),
+      });
+      if (!res.ok) throw new Error('TTS API error');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      await new Promise<void>((resolve) => {
+        const audio = new Audio(url);
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.play().catch(() => resolve());
+      });
+    } catch {
+      // Fallback to Web Speech API
+      await new Promise<void>((resolve) => {
+        const synth = window.speechSynthesis;
+        synth.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ko-KR';
+        utterance.rate = rate;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve();
+        synth.speak(utterance);
+      });
+    }
   }, []);
-
-  // TTS speak
-  const speakTTS = useCallback((text: string, voice: string, rate: number): Promise<void> => {
-    return new Promise((resolve) => {
-      const synth = window.speechSynthesis;
-      synth.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'ko-KR';
-      utterance.rate = rate;
-      const selectedVoice = getKoreanVoice(voice);
-      if (selectedVoice) utterance.voice = selectedVoice;
-      utterance.onend = () => resolve();
-      utterance.onerror = () => resolve();
-      synth.speak(utterance);
-    });
-  }, [getKoreanVoice]);
 
   // Main announce flow
   const handleAnnounce = useCallback(async (announcement: Announcement, _categoryId: string) => {
@@ -156,19 +161,19 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between sticky top-0 z-50">
+      <header className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-sm font-bold text-black">
+          <div className="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center text-sm font-bold text-black">
             ITN
           </div>
           <div>
-            <h1 className="text-base font-bold leading-tight">ITN Fitness</h1>
+            <h1 className="text-lg font-bold leading-tight">ITN Fitness</h1>
             <p className="text-xs text-slate-400 leading-tight">안내방송 시스템</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {isAnnouncing && (
             <div className="flex items-center gap-2 text-sm text-blue-400">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
@@ -177,16 +182,16 @@ export default function Home() {
           )}
           <Link
             href="/admin"
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
           >
             ⚙️ 관리
           </Link>
         </div>
       </header>
 
-      {/* Main content */}
-      <main className="flex-1 container mx-auto p-4 max-w-5xl">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Main content — fills remaining height */}
+      <main className="flex-1 min-h-0 px-6 py-5">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-5 max-w-7xl mx-auto">
           <BGMPlayer
             onDuck={handleDuck}
             playerRef={playerRef}

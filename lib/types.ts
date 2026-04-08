@@ -44,10 +44,15 @@ export const DAY_LABELS: Record<string, string> = {
 };
 
 export const VOICE_OPTIONS = [
-  { value: 'ko-KR-SunHiNeural', label: '선희 (여성)' },
-  { value: 'ko-KR-InJoonNeural', label: '인준 (남성)' },
-  { value: 'ko-KR-HyunsuNeural', label: '현수 (남성)' },
-  { value: 'ko-KR', label: '시스템 한국어' },
+  { value: 'ko-KR-SunHiNeural',    label: '선희 — 여성, 방송 스타일' },
+  { value: 'ko-KR-JiMinNeural',    label: '지민 — 여성, 밝고 친근함' },
+  { value: 'ko-KR-YuJinNeural',    label: '유진 — 여성, 부드러움' },
+  { value: 'ko-KR-SeoHyeonNeural', label: '서현 — 여성, 차분함' },
+  { value: 'ko-KR-SoonBokNeural',  label: '순복 — 여성, 연륜있는 목소리' },
+  { value: 'ko-KR-InJoonNeural',   label: '인준 — 남성, 방송 스타일' },
+  { value: 'ko-KR-HyunsuNeural',   label: '현수 — 남성, 자연스러움' },
+  { value: 'ko-KR-GookMinNeural',  label: '국민 — 남성, 안정적' },
+  { value: 'ko-KR-BonginNeural',   label: '봉인 — 남성, 중후함' },
 ];
 
 export const CHIME_OPTIONS = [

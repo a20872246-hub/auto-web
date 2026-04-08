@@ -33,14 +33,26 @@ export function SettingsTab() {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: '안녕하세요, ITN 피트니스입니다.', voice, rate: 1.0 }),
+        body: JSON.stringify({ text: '안녕하세요, ITN 피트니스입니다. 오늘도 활기찬 하루 되세요!', voice, rate: 1.0 }),
       });
+      if (!res.ok) throw new Error();
       const blob = await res.blob();
+      if (blob.size === 0) throw new Error();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
       audio.onended = () => URL.revokeObjectURL(url);
-      audio.play();
-    } catch {}
+      await audio.play();
+    } catch {
+      // Fallback to Web Speech API
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance('안녕하세요, ITN 피트니스입니다.');
+      u.lang = 'ko-KR';
+      const voices = synth.getVoices();
+      const ko = voices.find((v) => v.lang === 'ko-KR');
+      if (ko) u.voice = ko;
+      synth.speak(u);
+    }
   };
 
   return (

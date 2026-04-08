@@ -131,23 +131,50 @@ function AnnouncementForm({
   const [voice, setVoice] = useState(initial?.voice || 'ko-KR-SunHiNeural');
   const [rate, setRate] = useState(initial?.rate || 1.0);
   const [testing, setTesting] = useState(false);
+  const [testError, setTestError] = useState('');
+
+  // Web Speech API fallback
+  const speakFallback = (t: string, r: number) => {
+    return new Promise<void>((resolve) => {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = 'ko-KR';
+      u.rate = r;
+      const voices = synth.getVoices();
+      const ko = voices.find((v) => v.lang === 'ko-KR') || voices.find((v) => v.lang.startsWith('ko'));
+      if (ko) u.voice = ko;
+      u.onend = () => resolve();
+      u.onerror = () => resolve();
+      synth.speak(u);
+    });
+  };
 
   const handleTest = async () => {
     if (!text.trim() || testing) return;
     setTesting(true);
+    setTestError('');
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, voice, rate }),
       });
+      if (!res.ok) throw new Error(`API ${res.status}`);
       const blob = await res.blob();
+      if (blob.size === 0) throw new Error('빈 응답');
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.onended = () => { URL.revokeObjectURL(url); setTesting(false); };
-      audio.onerror = () => { URL.revokeObjectURL(url); setTesting(false); };
-      await audio.play();
-    } catch {
+      await new Promise<void>((resolve, reject) => {
+        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = () => { URL.revokeObjectURL(url); reject(new Error('재생 오류')); };
+        audio.play().catch(reject);
+      });
+    } catch (e) {
+      // Fallback to Web Speech API
+      setTestError('Azure TTS 연결 실패 → 시스템 음성으로 재생합니다');
+      await speakFallback(text, rate);
+    } finally {
       setTesting(false);
     }
   };
@@ -182,11 +209,17 @@ function AnnouncementForm({
             className="w-full accent-green-500 mt-2" />
         </div>
       </div>
+      {testError && (
+        <p className="text-xs text-yellow-400 bg-yellow-900/20 border border-yellow-800/40 rounded-lg px-3 py-2">
+          ⚠️ {testError}
+        </p>
+      )}
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={handleTest} disabled={testing}
-          className="btn-secondary flex items-center gap-1.5">
-          {testing ? <span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" /> : '🔊'}
-          {testing ? '재생 중...' : '테스트'}
+          className="btn-secondary flex items-center gap-1.5 min-w-[90px] justify-center">
+          {testing
+            ? <><span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" /> 재생 중...</>
+            : <>🔊 테스트</>}
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">취소</button>
         <button type="submit" className="btn-primary">저장</button>

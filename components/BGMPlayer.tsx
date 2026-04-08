@@ -258,11 +258,75 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
         >+</button>
       </div>
 
-      {/* Playlist count */}
+      {/* Playlist */}
       {playlist.length > 0 && (
-        <p className="text-xs text-slate-500 text-center">
-          재생목록 {playlist.length}곡 · 현재 {currentIndex + 1}번째
-        </p>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">재생목록 ({playlist.length}곡)</span>
+            <button
+              onClick={() => {
+                const { setPlaylist } = useStore.getState();
+                setPlaylist([]);
+              }}
+              className="text-xs text-slate-500 hover:text-red-400 transition-colors"
+            >전체 삭제</button>
+          </div>
+          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto pr-1">
+            {playlist.map((url, idx) => {
+              const videoId = extractVideoId(url);
+              const isActive = idx === currentIndex;
+              return (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    if (!isReady || !playerRef.current) return;
+                    setCurrentIndex(idx);
+                    const vid = extractVideoId(url);
+                    if (vid) {
+                      playerRef.current.loadVideoById(vid);
+                      playerRef.current.playVideo();
+                    }
+                  }}
+                  className={`flex items-center gap-2.5 p-2 rounded-lg text-left transition-colors group ${
+                    isActive
+                      ? 'bg-green-600/20 border border-green-600/40'
+                      : 'bg-slate-900/40 hover:bg-slate-700/60 border border-transparent'
+                  }`}
+                >
+                  <div className={`shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                    isActive ? 'bg-green-500 text-black' : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600'
+                  }`}>
+                    {isActive && isPlaying ? '♪' : idx + 1}
+                  </div>
+                  {videoId ? (
+                    <img
+                      src={`https://img.youtube.com/vi/${videoId}/default.jpg`}
+                      alt=""
+                      className="w-10 h-7 rounded object-cover shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : null}
+                  <span className={`text-xs truncate flex-1 ${isActive ? 'text-green-300' : 'text-slate-300'}`}>
+                    {isActive && currentTitle ? currentTitle : (videoId ? `youtu.be/${videoId}` : url)}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const { setPlaylist } = useStore.getState();
+                      const next = playlist.filter((_, i) => i !== idx);
+                      setPlaylist(next);
+                      if (isActive && next.length > 0) {
+                        const newIdx = Math.min(idx, next.length - 1);
+                        setCurrentIndex(newIdx);
+                      }
+                    }}
+                    className="shrink-0 text-slate-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-sm px-1"
+                  >✕</button>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

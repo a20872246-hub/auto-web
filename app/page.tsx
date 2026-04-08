@@ -10,6 +10,7 @@ import { PlaylistTab } from '@/components/tabs/PlaylistTab';
 import { SettingsTab } from '@/components/tabs/SettingsTab';
 import { useStore } from '@/lib/store';
 import type { Announcement } from '@/lib/types';
+import { speak } from '@/lib/tts';
 
 type Tab = 'control' | 'announcements' | 'schedules' | 'playlist' | 'settings';
 
@@ -80,37 +81,11 @@ export default function Home() {
     });
   }, [settings.tts]);
 
-  // TTS speak — Microsoft Azure Neural TTS via API route
-  const speakTTS = useCallback(async (text: string, voice: string, rate: number): Promise<void> => {
-    try {
-      const res = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice, rate }),
-      });
-      if (!res.ok) throw new Error('TTS API error');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      await new Promise<void>((resolve) => {
-        const audio = new Audio(url);
-        audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
-        audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
-        audio.play().catch(() => resolve());
-      });
-    } catch {
-      // Fallback to Web Speech API
-      await new Promise<void>((resolve) => {
-        const synth = window.speechSynthesis;
-        synth.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'ko-KR';
-        utterance.rate = rate;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        synth.speak(utterance);
-      });
-    }
-  }, []);
+  // TTS speak — Web Speech API (uses Microsoft Neural voices on Edge/Windows)
+  const speakTTS = useCallback(
+    (text: string, voice: string, rate: number) => speak(text, voice, rate),
+    []
+  );
 
   // Main announce flow
   const handleAnnounce = useCallback(async (announcement: Announcement, _categoryId: string) => {

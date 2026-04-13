@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, useCallback, useEffect, type ReactNode } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { BGMPlayer } from '@/components/BGMPlayer';
 import { AnnouncementPanel } from '@/components/AnnouncementPanel';
 import { ScheduleStatus } from '@/components/ScheduleStatus';
@@ -37,11 +37,12 @@ interface FiredEntry {
 }
 
 export default function Home() {
-  const { settings, categories } = useStore();
+  const { categories } = useStore();
   const playerRef = useRef<YTPlayer | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTitle, setCurrentTitle] = useState('');
   const [isAnnouncing, setIsAnnouncing] = useState(false);
+  const isAnnouncingRef = useRef(false);
   const [lastAnnouncement, setLastAnnouncement] = useState('');
   const [activeTab, setActiveTab] = useState<Tab>('control');
   const firedRef = useRef<FiredEntry[]>([]);
@@ -58,19 +59,22 @@ export default function Home() {
     }
   }, []);
 
-  // Duck BGM for announcement
+  // Duck BGM — 항상 최신 settings를 Zustand에서 직접 읽음 (stale closure 방지)
   const handleDuck = useCallback(async (duck: boolean) => {
     if (!playerRef.current) return;
+    const { settings } = useStore.getState();
     const { volume, duckedVolume, fadeDuration } = settings.bgm;
     if (duck) {
-      await fadeVolume(volume, duckedVolume, fadeDuration);
+      const currentVol = playerRef.current.getVolume();
+      await fadeVolume(currentVol, duckedVolume, fadeDuration);
     } else {
       await fadeVolume(duckedVolume, volume, fadeDuration);
     }
-  }, [settings.bgm, fadeVolume]);
+  }, [fadeVolume]);
 
-  // Play chime audio
+  // Play chime audio — settings를 Zustand에서 직접 읽음
   const playChime = useCallback(async () => {
+    const { settings } = useStore.getState();
     const { chimeEnabled, chimeType } = settings.tts;
     if (!chimeEnabled) return;
     await new Promise<void>((resolve) => {
@@ -79,25 +83,28 @@ export default function Home() {
       audio.onerror = () => resolve();
       audio.play().catch(() => resolve());
     });
-  }, [settings.tts]);
+  }, []);
 
-  // TTS speak — Web Speech API (uses Microsoft Neural voices on Edge/Windows)
+  // TTS speak
   const speakTTS = useCallback(
     (text: string, voice: string, rate: number) => speak(text, voice, rate),
     []
   );
 
-  // Main announce flow
+  // Main announce flow — isAnnouncingRef로 stale closure 완전 제거
   const handleAnnounce = useCallback(async (announcement: Announcement, _categoryId: string) => {
-    if (isAnnouncing) return;
+    if (isAnnouncingRef.current) return;
+    isAnnouncingRef.current = true;
     setIsAnnouncing(true);
     setLastAnnouncement(announcement.label);
 
-    const bgmWasPlaying = isPlaying;
+    // 항상 플레이어 상태를 직접 읽어서 덕킹 여부 결정
+    const bgmWasPlaying = playerRef.current?.getPlayerState() === 1;
 
     try {
       if (bgmWasPlaying) await handleDuck(true);
       await playChime();
+      const { settings } = useStore.getState();
       await speakTTS(
         announcement.text,
         announcement.voice || settings.tts.voice,
@@ -106,9 +113,10 @@ export default function Home() {
       await new Promise((r) => setTimeout(r, settings.tts.postDelay));
       if (bgmWasPlaying) await handleDuck(false);
     } finally {
+      isAnnouncingRef.current = false;
       setIsAnnouncing(false);
     }
-  }, [isAnnouncing, isPlaying, handleDuck, playChime, speakTTS, settings.tts]);
+  }, [handleDuck, playChime, speakTTS]);
 
   // Schedule fire handler
   const handleScheduleFire = useCallback((announcementRef: string, bgmAction: string) => {
@@ -118,7 +126,7 @@ export default function Home() {
     if (!item) return;
 
     handleAnnounce(item, catId).then(() => {
-      if (bgmAction === 'play' && !isPlaying) {
+      if (bgmAction === 'play' && playerRef.current?.getPlayerState() !== 1) {
         playerRef.current?.playVideo();
       } else if (bgmAction === 'stop') {
         playerRef.current?.stopVideo();
@@ -126,7 +134,7 @@ export default function Home() {
         setIsPlaying(false);
       }
     });
-  }, [categories, handleAnnounce, isPlaying]);
+  }, [categories, handleAnnounce]);
 
   // Warm up speech synthesis voices on first click
   useEffect(() => {
@@ -150,28 +158,28 @@ export default function Home() {
   ] as const;
 
   return (
-    <div className="h-screen flex flex-col bg-slate-900">
+    <div className="h-screen flex flex-col bg-gray-50">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 px-6 py-3 flex items-center justify-between shrink-0">
+      <header className="bg-white border-b border-gray-200 shadow-sm px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-green-500 rounded-xl flex items-center justify-center text-xs font-bold text-black">
+          <div className="w-9 h-9 bg-green-500 rounded-xl flex items-center justify-center text-xs font-bold text-white">
             ITN
           </div>
           <div>
-            <h1 className="text-base font-bold leading-tight">ITN Fitness</h1>
-            <p className="text-xs text-slate-400 leading-tight">안내방송 시스템</p>
+            <h1 className="text-base font-bold leading-tight text-gray-800">ITN Fitness</h1>
+            <p className="text-xs text-gray-500 leading-tight">안내방송 시스템</p>
           </div>
         </div>
         {isAnnouncing && (
-          <div className="flex items-center gap-2 text-sm text-blue-400">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
+          <div className="flex items-center gap-2 text-sm text-orange-500 font-medium">
+            <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse inline-block" />
             방송 중: {lastAnnouncement}
           </div>
         )}
       </header>
 
       {/* Tab bar */}
-      <nav className="bg-slate-800 border-b border-slate-700 px-2 shrink-0">
+      <nav className="bg-white border-b border-gray-200 px-2 shrink-0">
         <div className="flex overflow-x-auto">
           {TABS.map((tab) => (
             <button
@@ -179,8 +187,8 @@ export default function Home() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === tab.id
-                  ? 'border-green-500 text-green-400'
-                  : 'border-transparent text-slate-400 hover:text-white'
+                  ? 'border-orange-500 text-orange-500'
+                  : 'border-transparent text-gray-500 hover:text-gray-800'
               }`}
             >
               <span>{tab.icon}</span>

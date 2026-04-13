@@ -1,49 +1,63 @@
 'use client';
 
-// Returns best available Korean voice, preferring Neural/Online voices
-export function getBestKoreanVoice(targetName?: string): SpeechSynthesisVoice | null {
-  if (typeof window === 'undefined') return null;
-  const voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) return null;
+// Speak using server-side msedge-tts (Microsoft Neural voices — high quality)
+export async function speak(text: string, voiceName: string, rate = 1.0): Promise<void> {
+  if (typeof window === 'undefined') return;
 
-  // Priority: exact match → Neural/Online Korean → any ko-KR → any ko
-  if (targetName) {
-    const exact = voices.find((v) => v.name === targetName);
-    if (exact) return exact;
-    // Partial match (e.g. "SunHi" in name)
-    const partial = voices.find((v) => v.lang.startsWith('ko') && v.name.includes(targetName.split('-').pop() || ''));
-    if (partial) return partial;
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice: voiceName, rate }),
+    });
+
+    if (!res.ok) throw new Error(`TTS API ${res.status}`);
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+      audio.play().catch(() => { URL.revokeObjectURL(url); resolve(); });
+    });
+  } catch (err) {
+    console.warn('서버 TTS 실패, Web Speech API로 대체:', err);
+    return speakFallback(text, voiceName, rate);
   }
-  const neural = voices.find((v) => v.lang === 'ko-KR' && /Natural|Neural|Online/i.test(v.name));
-  if (neural) return neural;
-  const korean = voices.find((v) => v.lang === 'ko-KR');
-  if (korean) return korean;
-  return voices.find((v) => v.lang.startsWith('ko')) || null;
 }
 
-// List all available Korean voices on this device
-export function getKoreanVoices(): SpeechSynthesisVoice[] {
-  if (typeof window === 'undefined') return [];
-  return window.speechSynthesis.getVoices().filter((v) => v.lang.startsWith('ko'));
-}
-
-// Speak text using Web Speech API
-export function speak(text: string, voiceName: string, rate = 1.0): Promise<void> {
+// Fallback: Web Speech API (브라우저 내장)
+function waitForVoices(): Promise<SpeechSynthesisVoice[]> {
+  const voices = window.speechSynthesis.getVoices();
+  if (voices.length > 0) return Promise.resolve(voices);
   return new Promise((resolve) => {
-    if (typeof window === 'undefined') { resolve(); return; }
-    const synth = window.speechSynthesis;
-    synth.cancel();
+    window.speechSynthesis.addEventListener('voiceschanged', () => {
+      resolve(window.speechSynthesis.getVoices());
+    }, { once: true });
+    setTimeout(() => resolve(window.speechSynthesis.getVoices()), 3000);
+  });
+}
 
-    // Chrome sometimes needs a tiny delay after cancel
-    setTimeout(() => {
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'ko-KR';
-      u.rate = rate;
-      const voice = getBestKoreanVoice(voiceName);
-      if (voice) u.voice = voice;
-      u.onend = () => resolve();
-      u.onerror = () => resolve();
-      synth.speak(u);
-    }, 50);
+async function speakFallback(text: string, voiceName: string, rate = 1.0): Promise<void> {
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  await new Promise((r) => setTimeout(r, 80));
+
+  const voices = await waitForVoices();
+  const voice = voices.find((v) => v.name === voiceName)
+    ?? voices.find((v) => v.lang === 'ko-KR')
+    ?? voices.find((v) => v.lang.startsWith('ko'))
+    ?? null;
+
+  return new Promise((resolve) => {
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'ko-KR';
+    u.rate = rate;
+    if (voice) u.voice = voice;
+    u.onend = () => resolve();
+    u.onerror = () => resolve();
+    synth.speak(u);
   });
 }

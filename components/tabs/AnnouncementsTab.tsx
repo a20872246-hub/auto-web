@@ -47,7 +47,7 @@ export function AnnouncementsTab() {
             key={cat.id}
             onClick={() => setSelectedCat(cat.id)}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedCat === cat.id ? 'bg-green-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+              selectedCat === cat.id ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             {cat.label}
@@ -55,15 +55,15 @@ export function AnnouncementsTab() {
         ))}
         <button
           onClick={() => setShowCatForm(!showCatForm)}
-          className="px-3 py-1.5 rounded-lg text-sm bg-slate-700 hover:bg-slate-600 text-slate-300"
+          className="px-3 py-1.5 rounded-lg text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
         >
           + 카테고리 추가
         </button>
       </div>
 
       {showCatForm && (
-        <div className="bg-slate-700/50 rounded-xl p-4 flex flex-col gap-3 border border-slate-600 shrink-0">
-          <h3 className="text-sm font-semibold text-slate-300">새 카테고리</h3>
+        <div className="bg-gray-50 rounded-xl p-4 flex flex-col gap-3 border border-gray-200 shrink-0">
+          <h3 className="text-sm font-semibold text-gray-700">새 카테고리</h3>
           <div className="grid grid-cols-2 gap-3">
             <input type="text" placeholder="ID (영문, 예: event)" value={newCatId}
               onChange={(e) => setNewCatId(e.target.value)} className="input-field" />
@@ -80,22 +80,22 @@ export function AnnouncementsTab() {
       {/* List */}
       <div className="flex flex-col gap-2">
         {activeCategory?.items.map((item) => (
-          <div key={item.id} className="bg-slate-700/40 rounded-xl p-4 flex items-start gap-3">
+          <div key={item.id} className="bg-white border border-gray-200 shadow-sm rounded-xl p-4 flex items-start gap-3">
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">{item.label}</p>
-              <p className="text-sm text-slate-400 mt-1 line-clamp-2">{item.text}</p>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="font-medium text-sm text-gray-800">{item.label}</p>
+              <p className="text-sm text-gray-500 mt-1 line-clamp-2">{item.text}</p>
+              <p className="text-xs text-gray-400 mt-1">
                 {VOICE_OPTIONS.find((v) => v.value === item.voice)?.label?.split('—')[0].trim() || item.voice} · 속도 {item.rate}x
               </p>
             </div>
             <div className="flex gap-1 shrink-0">
               <button
                 onClick={() => { setEditing(item); setEditingCatId(activeCategory.id); setShowForm(true); }}
-                className="px-2 py-1 text-xs bg-slate-600 hover:bg-slate-500 rounded-lg transition-colors"
+                className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
               >편집</button>
               <button
                 onClick={() => deleteAnnouncement(activeCategory.id, item.id)}
-                className="px-2 py-1 text-xs bg-red-900/40 hover:bg-red-800/60 text-red-400 rounded-lg transition-colors"
+                className="px-2 py-1 text-xs bg-red-50 hover:bg-red-100 text-red-500 rounded-lg transition-colors"
               >삭제</button>
             </div>
           </div>
@@ -143,38 +143,38 @@ function AnnouncementForm({
   return (
     <form
       onSubmit={(e) => { e.preventDefault(); if (!label.trim() || !text.trim()) return; onSave({ label, text, voice, rate }); }}
-      className="bg-slate-700/50 rounded-xl p-5 flex flex-col gap-4 border border-slate-600 shrink-0"
+      className="bg-gray-50 rounded-xl p-5 flex flex-col gap-4 border border-gray-200 shrink-0"
     >
-      <h3 className="font-semibold">{initial ? '안내방송 편집' : '새 안내방송'}</h3>
+      <h3 className="font-semibold text-gray-800">{initial ? '안내방송 편집' : '새 안내방송'}</h3>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-slate-400">제목</label>
+        <label className="text-xs text-gray-500">제목</label>
         <input type="text" value={label} onChange={(e) => setLabel(e.target.value)}
           className="input-field" placeholder="예: 개장 안내" required />
       </div>
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-slate-400">방송 내용</label>
+        <label className="text-xs text-gray-500">방송 내용</label>
         <textarea value={text} onChange={(e) => setText(e.target.value)}
           className="input-field min-h-[72px] resize-y" placeholder="방송할 내용을 입력하세요" required />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">음성</label>
+          <label className="text-xs text-gray-500">음성</label>
           <select value={voice} onChange={(e) => setVoice(e.target.value)} className="input-field">
             {VOICE_OPTIONS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">속도: {rate}x</label>
+          <label className="text-xs text-gray-500">속도: {rate}x</label>
           <input type="range" min={0.5} max={2} step={0.05} value={rate}
             onChange={(e) => setRate(Number(e.target.value))}
-            className="w-full accent-green-500 mt-2" />
+            className="w-full accent-orange-500 mt-2" />
         </div>
       </div>
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={handleTest} disabled={testing}
           className="btn-secondary flex items-center gap-1.5 min-w-[90px] justify-center">
           {testing
-            ? <><span className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" /> 재생 중...</>
+            ? <><span className="w-3 h-3 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" /> 재생 중...</>
             : <>🔊 테스트</>}
         </button>
         <button type="button" onClick={onCancel} className="btn-secondary">취소</button>

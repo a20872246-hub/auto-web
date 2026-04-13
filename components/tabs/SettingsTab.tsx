@@ -16,6 +16,7 @@ export function SettingsTab() {
   const [chimeEnabled, setChimeEnabled] = useState(settings.tts.chimeEnabled);
   const [chimeType, setChimeType] = useState(settings.tts.chimeType);
   const [postDelay, setPostDelay] = useState(settings.tts.postDelay);
+  const [testing, setTesting] = useState(false);
 
   const handleSave = () => {
     updateBGMSettings({ volume: bgmVolume, duckedVolume, fadeDuration });
@@ -29,54 +30,65 @@ export function SettingsTab() {
     audio.play().catch(() => {});
   };
 
-  const testVoice = () => {
-    speak('안녕하세요, ITN 피트니스입니다. 오늘도 활기찬 하루 되세요!', voice, 1.0);
+  const testVoice = async () => {
+    if (testing) return;
+    setTesting(true);
+    await speak('안녕하세요, ITN 피트니스입니다. 오늘도 활기찬 하루 되세요!', voice, 1.0);
+    setTesting(false);
   };
 
   return (
     <div className="flex flex-col gap-5 h-full overflow-y-auto">
       {/* BGM */}
-      <section className="bg-slate-700/40 rounded-xl p-5 flex flex-col gap-4">
-        <h2 className="font-semibold flex items-center gap-2">🎵 BGM 설정</h2>
+      <section className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 flex flex-col gap-4">
+        <h2 className="font-semibold text-gray-800 flex items-center gap-2">🎵 BGM 설정</h2>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">기본 볼륨: {bgmVolume}%</label>
+          <label className="text-xs text-gray-500">기본 볼륨: {bgmVolume}%</label>
           <input type="range" min={0} max={100} value={bgmVolume}
             onChange={(e) => setBgmVolume(Number(e.target.value))} className="w-full accent-green-500" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">방송 중 BGM 볼륨 (덕킹): {duckedVolume}%</label>
+          <label className="text-xs text-gray-500">방송 중 BGM 볼륨 (덕킹): {duckedVolume}%</label>
           <input type="range" min={0} max={50} value={duckedVolume}
             onChange={(e) => setDuckedVolume(Number(e.target.value))} className="w-full accent-green-500" />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">페이드 시간: {fadeDuration}ms</label>
+          <label className="text-xs text-gray-500">페이드 시간: {fadeDuration}ms</label>
           <input type="range" min={300} max={5000} step={100} value={fadeDuration}
             onChange={(e) => setFadeDuration(Number(e.target.value))} className="w-full accent-green-500" />
         </div>
       </section>
 
       {/* TTS */}
-      <section className="bg-slate-700/40 rounded-xl p-5 flex flex-col gap-4">
-        <h2 className="font-semibold flex items-center gap-2">📢 안내방송 설정</h2>
+      <section className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 flex flex-col gap-4">
+        <h2 className="font-semibold text-gray-800 flex items-center gap-2">📢 안내방송 설정</h2>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">기본 음성</label>
+          <label className="text-xs text-gray-500">기본 음성</label>
           <div className="flex gap-2">
             <select value={voice} onChange={(e) => setVoice(e.target.value)} className="input-field flex-1">
               {VOICE_OPTIONS.map((v) => <option key={v.value} value={v.value}>{v.label}</option>)}
             </select>
-            <button onClick={testVoice} className="btn-secondary shrink-0">🔊 테스트</button>
+            <button
+              onClick={testVoice}
+              disabled={testing}
+              className="btn-secondary shrink-0 disabled:opacity-40 flex items-center gap-1.5"
+            >
+              {testing
+                ? <><span className="w-3 h-3 rounded-full border-2 border-gray-400 border-t-transparent animate-spin" /> 재생 중...</>
+                : <>🔊 테스트</>}
+            </button>
           </div>
         </div>
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={chimeEnabled} onChange={(e) => setChimeEnabled(e.target.checked)}
-              className="w-4 h-4 accent-green-500" />
-            <span className="text-sm">차임벨 사용</span>
+              className="w-4 h-4 accent-orange-500" />
+            <span className="text-sm text-gray-700">차임벨 사용</span>
           </label>
         </div>
         {chimeEnabled && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-400">차임벨 종류</label>
+            <label className="text-xs text-gray-500">차임벨 종류</label>
             <div className="flex gap-2">
               <select value={chimeType} onChange={(e) => setChimeType(e.target.value)} className="input-field flex-1">
                 {CHIME_OPTIONS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -86,15 +98,15 @@ export function SettingsTab() {
           </div>
         )}
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-slate-400">방송 후 딜레이: {postDelay}ms</label>
+          <label className="text-xs text-gray-500">방송 후 딜레이: {postDelay}ms</label>
           <input type="range" min={0} max={5000} step={100} value={postDelay}
-            onChange={(e) => setPostDelay(Number(e.target.value))} className="w-full accent-green-500" />
+            onChange={(e) => setPostDelay(Number(e.target.value))} className="w-full accent-orange-500" />
         </div>
       </section>
 
       <button
         onClick={handleSave}
-        className={`btn-primary py-3 text-base font-semibold transition-colors shrink-0 ${saved ? '!bg-green-700' : ''}`}
+        className={`btn-primary py-3 text-base font-semibold transition-colors shrink-0 ${saved ? '!bg-green-600' : ''}`}
       >
         {saved ? '✓ 저장 완료' : '설정 저장'}
       </button>

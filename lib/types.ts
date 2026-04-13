@@ -44,15 +44,16 @@ export const DAY_LABELS: Record<string, string> = {
 };
 
 export const VOICE_OPTIONS = [
-  { value: 'ko-KR-SunHiNeural',    label: '선희 — 여성, 방송 스타일' },
-  { value: 'ko-KR-JiMinNeural',    label: '지민 — 여성, 밝고 친근함' },
-  { value: 'ko-KR-YuJinNeural',    label: '유진 — 여성, 부드러움' },
-  { value: 'ko-KR-SeoHyeonNeural', label: '서현 — 여성, 차분함' },
-  { value: 'ko-KR-SoonBokNeural',  label: '순복 — 여성, 연륜있는 목소리' },
-  { value: 'ko-KR-InJoonNeural',   label: '인준 — 남성, 방송 스타일' },
-  { value: 'ko-KR-HyunsuNeural',   label: '현수 — 남성, 자연스러움' },
-  { value: 'ko-KR-GookMinNeural',  label: '국민 — 남성, 안정적' },
-  { value: 'ko-KR-BonginNeural',   label: '봉인 — 남성, 중후함' },
+  { value: 'sunhi-default',  label: '선희 — 여성, 방송 스타일' },
+  { value: 'sunhi-calm',     label: '지연 — 여성, 차분함' },
+  { value: 'sunhi-bright',   label: '유진 — 여성, 밝고 경쾌함' },
+  { value: 'sunhi-warm',     label: '민지 — 여성, 따뜻함' },
+  { value: 'sunhi-deep',     label: '수현 — 여성, 안정적' },
+  { value: 'injoon-default', label: '인준 — 남성, 방송 스타일' },
+  { value: 'injoon-deep',    label: '민호 — 남성, 중후함' },
+  { value: 'injoon-bright',  label: '재원 — 남성, 경쾌함' },
+  { value: 'hyunsu-default', label: '현수 — 남성, 자연스러움' },
+  { value: 'hyunsu-calm',    label: '성훈 — 남성, 차분함' },
 ];
 
 export const CHIME_OPTIONS = [

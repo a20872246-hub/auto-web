@@ -212,24 +212,24 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-6 flex flex-col gap-4 h-full">
+    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex flex-col gap-4 h-full">
       <div ref={containerRef} className="absolute opacity-0 pointer-events-none w-px h-px overflow-hidden">
         <div id="yt-player" />
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-green-400 text-xl">♪</span>
-        <h2 className="text-lg font-semibold">BGM 플레이어</h2>
+        <span className="text-green-500 text-xl">♪</span>
+        <h2 className="text-lg font-semibold text-gray-800">BGM 플레이어</h2>
         {isPlaying && (
-          <span className="ml-auto text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full animate-pulse">
+          <span className="ml-auto text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full animate-pulse font-medium">
             재생 중
           </span>
         )}
       </div>
 
       {/* Track info */}
-      <div className="bg-slate-900/50 rounded-lg p-3 min-h-[48px] flex items-center">
-        <p className="text-sm text-slate-300 truncate">
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 min-h-[48px] flex items-center">
+        <p className="text-sm text-gray-700 truncate">
           {currentTitle || (isReady ? '재생할 항목을 선택하세요' : 'YouTube 플레이어 로딩 중...')}
         </p>
       </div>
@@ -239,38 +239,38 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
         <button
           onClick={handlePrev}
           disabled={!isReady || playlist.length === 0}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg"
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg text-gray-700"
           title="이전"
         >⏮</button>
         <button
           onClick={isPlaying ? handlePause : handlePlay}
           disabled={!isReady || playlist.length === 0}
-          className="p-3 rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xl w-14 h-14"
+          className="p-3 rounded-xl bg-green-500 hover:bg-green-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-xl w-14 h-14 text-white"
           title={isPlaying ? '일시정지' : '재생'}
         >{isPlaying ? '⏸' : '▶'}</button>
         <button
           onClick={handleStop}
           disabled={!isReady}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg"
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg text-gray-700"
           title="정지"
         >⏹</button>
         <button
           onClick={handleNext}
           disabled={!isReady || playlist.length === 0}
-          className="p-2 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg"
+          className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-lg text-gray-700"
           title="다음"
         >⏭</button>
       </div>
 
       {/* Volume */}
       <div className="flex items-center gap-3">
-        <span className="text-slate-400 text-sm w-6">🔊</span>
+        <span className="text-gray-500 text-sm w-6">🔊</span>
         <input
           type="range" min={0} max={100} value={volume}
           onChange={(e) => handleVolume(Number(e.target.value))}
           className="flex-1 accent-green-500"
         />
-        <span className="text-slate-400 text-sm w-8 text-right">{volume}%</span>
+        <span className="text-gray-500 text-sm w-8 text-right font-medium">{volume}%</span>
       </div>
 
       {/* Progress bar */}
@@ -302,11 +302,11 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
           style={{
             background:
               duration > 0
-                ? `linear-gradient(to right, #22c55e ${((isSeeking ? seekValue : currentTime) / duration) * 100}%, #334155 0%)`
-                : '#334155',
+                ? `linear-gradient(to right, #22c55e ${((isSeeking ? seekValue : currentTime) / duration) * 100}%, #e5e7eb 0%)`
+                : '#e5e7eb',
           }}
         />
-        <div className="flex justify-between text-xs text-slate-500 tabular-nums">
+        <div className="flex justify-between text-xs text-gray-400 tabular-nums">
           <span>{formatTime(isSeeking ? seekValue : currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
@@ -320,17 +320,17 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
           onChange={(e) => setUrlInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handlePlayUrl()}
           placeholder="YouTube URL 입력"
-          className="flex-1 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-green-500"
+          className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-green-400 transition-colors"
         />
         <button
           onClick={handlePlayUrl}
           disabled={!isReady || !urlInput}
-          className="px-3 py-2 bg-green-600 hover:bg-green-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
+          className="px-3 py-2 bg-green-500 hover:bg-green-400 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors text-white"
         >▶ 재생</button>
         <button
           onClick={handleAddUrl}
           disabled={!urlInput}
-          className="px-3 py-2 bg-slate-600 hover:bg-slate-500 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors"
+          className="px-3 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-40 rounded-lg text-sm font-medium transition-colors text-gray-700"
           title="재생목록에 추가"
         >+</button>
       </div>
@@ -340,20 +340,19 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
         <div className="flex flex-col gap-2 flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between shrink-0">
-            <span className="text-xs text-slate-400 font-medium">재생목록 ({playlist.length}곡)</span>
+            <span className="text-xs text-gray-500 font-medium">재생목록 ({playlist.length}곡)</span>
             <div className="flex items-center gap-3">
               {selected.size > 0 && (
                 <button
                   onClick={() => {
                     const { setPlaylist } = useStore.getState();
                     const next = playlist.filter((_, i) => !selected.has(i));
-                    // adjust currentIndex
                     const removedBefore = [...selected].filter(i => i < currentIndex).length;
                     setCurrentIndex(Math.max(0, currentIndex - removedBefore));
                     setPlaylist(next);
                     setSelected(new Set());
                   }}
-                  className="text-xs bg-red-600/30 hover:bg-red-600/50 text-red-400 px-2 py-0.5 rounded-md transition-colors"
+                  className="text-xs bg-red-50 hover:bg-red-100 text-red-500 px-2 py-0.5 rounded-md transition-colors"
                 >
                   선택 삭제 ({selected.size})
                 </button>
@@ -366,7 +365,7 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                     setSelected(new Set(playlist.map((_, i) => i)));
                   }
                 }}
-                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {selected.size === playlist.length ? '전체 해제' : '전체 선택'}
               </button>
@@ -396,11 +395,9 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                     const [moved] = next.splice(from, 1);
                     next.splice(idx, 0, moved);
                     setPlaylist(next);
-                    // update currentIndex
                     if (currentIndex === from) setCurrentIndex(idx);
                     else if (from < currentIndex && idx >= currentIndex) setCurrentIndex(currentIndex - 1);
                     else if (from > currentIndex && idx <= currentIndex) setCurrentIndex(currentIndex + 1);
-                    // update selected
                     setSelected((prev) => {
                       const arr = [...prev].map(i => {
                         if (i === from) return idx;
@@ -416,16 +413,16 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                   onDragEnd={() => { dragIndexRef.current = null; setDragOver(null); }}
                   className={`flex items-center gap-2.5 p-2 rounded-lg cursor-pointer select-none transition-all group ${
                     isDragTarget
-                      ? 'border-2 border-green-500 bg-green-500/10'
+                      ? 'border-2 border-green-500 bg-green-50'
                       : isSelected
-                      ? 'bg-blue-600/20 border border-blue-600/40'
+                      ? 'bg-orange-50 border border-orange-300'
                       : isActive
-                      ? 'bg-green-600/20 border border-green-600/40'
-                      : 'bg-slate-900/40 hover:bg-slate-700/60 border border-transparent'
+                      ? 'bg-green-50 border border-green-300'
+                      : 'bg-gray-50 hover:bg-gray-100 border border-transparent'
                   }`}
                 >
                   {/* Drag handle */}
-                  <span className="shrink-0 text-slate-600 group-hover:text-slate-400 cursor-grab active:cursor-grabbing text-base leading-none px-0.5">
+                  <span className="shrink-0 text-gray-300 group-hover:text-gray-500 cursor-grab active:cursor-grabbing text-base leading-none px-0.5">
                     ⠿
                   </span>
 
@@ -442,7 +439,7 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                       });
                     }}
                     onClick={(e) => e.stopPropagation()}
-                    className="w-3.5 h-3.5 accent-blue-500 shrink-0 cursor-pointer"
+                    className="w-3.5 h-3.5 accent-orange-500 shrink-0 cursor-pointer"
                   />
 
                   {/* Play button / index */}
@@ -454,7 +451,7 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                       if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
                     }}
                     className={`shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-colors ${
-                      isActive ? 'bg-green-500 text-black' : 'bg-slate-700 text-slate-400 hover:bg-green-600 hover:text-white'
+                      isActive ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500 hover:bg-green-500 hover:text-white'
                     }`}
                   >
                     {isActive && isPlaying ? '♪' : idx + 1}
@@ -472,7 +469,7 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
 
                   {/* Title */}
                   <span
-                    className={`text-xs truncate flex-1 ${isActive ? 'text-green-300' : 'text-slate-300'}`}
+                    className={`text-xs truncate flex-1 ${isActive ? 'text-green-600 font-medium' : 'text-gray-600'}`}
                     onClick={() => {
                       if (!isReady || !playerRef.current) return;
                       setCurrentIndex(idx);

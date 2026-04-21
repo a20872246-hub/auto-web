@@ -5,31 +5,33 @@ import { useEffect, useState } from 'react';
 const PLANS = [
   {
     id: 'basic',
-    name: '기본',
-    price: '무료',
+    name: '무료',
+    price: '₩0',
     period: '',
     color: 'gray',
-    features: ['안내방송 5개', '스케줄 3개', 'BGM 재생', '광고 포함 YouTube'],
-    disabled: ['원격 방송', '무제한 안내방송', '무제한 스케줄', 'AI 음성 10종'],
+    features: ['안내방송 5개', '스케줄 3개', 'BGM 재생'],
+    disabled: ['원격 방송', '무제한 안내방송', '무제한 스케줄', 'AI 음성 10종', '차임벨 8종'],
+  },
+  {
+    id: 'standard',
+    name: '스탠다드',
+    price: '₩9,900',
+    period: '/월',
+    yearlyPrice: '₩99,000/년 (2개월 무료)',
+    color: 'orange',
+    features: ['무제한 안내방송', '무제한 스케줄', 'BGM 재생', 'AI 음성 10종', '차임벨 8종'],
+    disabled: ['원격 방송 (모바일)'],
   },
   {
     id: 'pro',
     name: 'Pro',
-    price: '₩29,000',
+    price: '₩19,900',
     period: '/월',
-    color: 'orange',
-    features: ['무제한 안내방송', '무제한 스케줄', 'BGM 광고 없이 재생', 'AI 음성 10종', '원격 방송 (모바일)', '차임벨 8종'],
+    yearlyPrice: '₩199,000/년 (2개월 무료)',
+    color: 'green',
+    features: ['스탠다드 전체 기능', '원격 방송 (모바일)', '우선 고객 지원'],
     disabled: [],
     recommended: true,
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    price: '₩79,000',
-    period: '/월',
-    color: 'green',
-    features: ['Pro 전체 기능', '최대 5개 지점', '지점별 독립 관리', '우선 고객 지원'],
-    disabled: [],
   },
 ];
 
@@ -102,9 +104,14 @@ export function MyPageTab() {
             )}
             <div className="flex items-baseline justify-between">
               <span className="text-lg font-bold text-gray-800">{plan.name}</span>
-              <span className="text-xl font-bold text-gray-800">
-                {plan.price}<span className="text-sm font-normal text-gray-500">{plan.period}</span>
-              </span>
+              <div className="text-right">
+                <span className="text-xl font-bold text-gray-800">
+                  {plan.price}<span className="text-sm font-normal text-gray-500">{plan.period}</span>
+                </span>
+                {'yearlyPrice' in plan && (
+                  <p className="text-xs text-orange-500 font-medium mt-0.5">{plan.yearlyPrice}</p>
+                )}
+              </div>
             </div>
             <ul className="flex flex-col gap-1.5">
               {plan.features.map((f) => (
@@ -122,9 +129,9 @@ export function MyPageTab() {
               <button
                 onClick={() => alert('결제 시스템 준비 중입니다. 문의: 카카오톡 @ITNFitness')}
                 className={`w-full py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${
-                  plan.id === 'pro'
-                    ? 'bg-orange-500 hover:bg-orange-400 text-white'
-                    : 'bg-green-500 hover:bg-green-400 text-white'
+                  plan.recommended
+                    ? 'bg-green-500 hover:bg-green-400 text-white'
+                    : 'bg-orange-500 hover:bg-orange-400 text-white'
                 }`}
               >
                 {plan.name} 시작하기

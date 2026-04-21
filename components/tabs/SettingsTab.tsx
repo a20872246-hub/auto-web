@@ -6,7 +6,7 @@ import { VOICE_OPTIONS, CHIME_OPTIONS } from '@/lib/types';
 import { speak } from '@/lib/tts';
 
 export function SettingsTab() {
-  const { settings, updateBGMSettings, updateTTSSettings } = useStore();
+  const { settings, updateBGMSettings, updateTTSSettings, updateAdminSettings } = useStore();
   const [saved, setSaved] = useState(false);
 
   const [bgmVolume, setBgmVolume] = useState(settings.bgm.volume);
@@ -16,11 +16,13 @@ export function SettingsTab() {
   const [chimeEnabled, setChimeEnabled] = useState(settings.tts.chimeEnabled);
   const [chimeType, setChimeType] = useState(settings.tts.chimeType);
   const [postDelay, setPostDelay] = useState(settings.tts.postDelay);
+  const [pin, setPin] = useState(settings.admin?.pin ?? '0000');
   const [testing, setTesting] = useState(false);
 
   const handleSave = () => {
     updateBGMSettings({ volume: bgmVolume, duckedVolume, fadeDuration });
     updateTTSSettings({ voice, chimeEnabled, chimeType, postDelay });
+    updateAdminSettings({ pin });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -101,6 +103,24 @@ export function SettingsTab() {
           <label className="text-xs text-gray-500">방송 후 딜레이: {postDelay}ms</label>
           <input type="range" min={0} max={5000} step={100} value={postDelay}
             onChange={(e) => setPostDelay(Number(e.target.value))} className="w-full accent-orange-500" />
+        </div>
+      </section>
+
+      {/* 원격 관리 */}
+      <section className="bg-white border border-gray-200 shadow-sm rounded-xl p-5 flex flex-col gap-4">
+        <h2 className="font-semibold text-gray-800 flex items-center gap-2">📱 원격 방송 설정</h2>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-gray-500">관리자 PIN (4자리)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={4}
+            value={pin}
+            onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="0000"
+            className="input-field w-32 tracking-[0.4em] text-center font-mono text-lg"
+          />
+          <p className="text-xs text-gray-400">핸드폰에서 /remote 페이지 접속 시 사용합니다.</p>
         </div>
       </section>
 

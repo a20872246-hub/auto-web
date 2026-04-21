@@ -35,6 +35,9 @@ export interface Settings {
     chimeType: string;
     postDelay: number;
   };
+  admin: {
+    pin: string;
+  };
 }
 
 export const DAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;

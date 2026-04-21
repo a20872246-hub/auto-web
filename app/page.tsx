@@ -8,11 +8,12 @@ import { AnnouncementsTab } from '@/components/tabs/AnnouncementsTab';
 import { SchedulesTab } from '@/components/tabs/SchedulesTab';
 import { PlaylistTab } from '@/components/tabs/PlaylistTab';
 import { SettingsTab } from '@/components/tabs/SettingsTab';
+import { MyPageTab } from '@/components/tabs/MyPageTab';
 import { useStore } from '@/lib/store';
 import type { Announcement } from '@/lib/types';
 import { speak } from '@/lib/tts';
 
-type Tab = 'control' | 'announcements' | 'schedules' | 'playlist' | 'settings';
+type Tab = 'control' | 'announcements' | 'schedules' | 'playlist' | 'settings' | 'mypage';
 
 interface YTPlayer {
   playVideo(): void;
@@ -136,6 +137,22 @@ export default function Home() {
     });
   }, [categories, handleAnnounce]);
 
+  // 원격 방송 폴링 — 2초마다 대기 중인 방송 확인
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/remote/pending');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.id) return;
+        await fetch(`/api/remote/pending?id=${data.id}`, { method: 'DELETE' });
+        handleScheduleFire(data.ref, data.bgmAction ?? 'none');
+      } catch {}
+    };
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
+  }, [handleScheduleFire]);
+
   // Warm up speech synthesis voices on first click
   useEffect(() => {
     const warmUp = () => {
@@ -155,6 +172,7 @@ export default function Home() {
     { id: 'schedules',     icon: '🕐', label: '스케줄' },
     { id: 'playlist',      icon: '🎵', label: '재생목록' },
     { id: 'settings',      icon: '⚙️', label: '설정' },
+    { id: 'mypage',        icon: '👤', label: '마이페이지' },
   ] as const;
 
   return (
@@ -233,6 +251,11 @@ export default function Home() {
         {/* 설정 */}
         <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'settings' ? 'block' : 'hidden'}`}>
           <SettingsTab />
+        </div>
+
+        {/* 마이페이지 */}
+        <div className={`h-full px-5 py-4 max-w-3xl mx-auto w-full ${activeTab === 'mypage' ? 'block' : 'hidden'}`}>
+          <MyPageTab />
         </div>
       </main>
 

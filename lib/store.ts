@@ -30,6 +30,7 @@ interface AppState {
   // Settings actions
   updateBGMSettings: (data: Partial<Settings['bgm']>) => void;
   updateTTSSettings: (data: Partial<Settings['tts']>) => void;
+  updateAdminSettings: (data: Partial<Settings['admin']>) => void;
   setPlaylist: (playlist: string[]) => void;
 }
 
@@ -110,6 +111,11 @@ export const useStore = create<AppState>()(
       updateTTSSettings: (data) =>
         set((s) => ({
           settings: { ...s.settings, tts: { ...s.settings.tts, ...data } },
+        })),
+
+      updateAdminSettings: (data) =>
+        set((s) => ({
+          settings: { ...s.settings, admin: { ...s.settings.admin, ...data } },
         })),
 
       setPlaylist: (playlist) =>

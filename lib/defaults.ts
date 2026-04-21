@@ -50,4 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
     chimeType: 'piano',
     postDelay: 1000,
   },
+  admin: {
+    pin: '0000',
+  },
 };

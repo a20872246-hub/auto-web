@@ -59,11 +59,63 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
   const [seekValue, setSeekValue] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [isLoadingStream, setIsLoadingStream] = useState(false);
   const dragIndexRef = useRef<number | null>(null);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const isDirectModeRef = useRef(false);
+  const playlistRef = useRef(settings.bgm.playlist);
 
   const playlist = settings.bgm.playlist;
+  playlistRef.current = playlist;
+
+  // yt-dlp로 직접 스트림 URL을 받아 HTML5 Audio로 재생 (광고 없음)
+  const playWithDirectMode = useCallback(async (url: string): Promise<boolean> => {
+    setIsLoadingStream(true);
+    try {
+      const res = await fetch(`/api/yt-stream?url=${encodeURIComponent(url)}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (!data.url) return false;
+
+      if (!audioRef.current) audioRef.current = new Audio();
+      const audio = audioRef.current;
+
+      // 현재 볼륨 설정 (패치 이후 getVolume이 audioRef를 읽을 수 있으므로 직접 계산)
+      const { settings: s } = useStore.getState();
+      audio.volume = s.bgm.volume / 100;
+      audio.src = data.url;
+      audio.currentTime = 0;
+      isDirectModeRef.current = true;
+
+      audio.ontimeupdate = () => {
+        setCurrentTime(audio.currentTime);
+        if (isFinite(audio.duration)) setDuration(audio.duration);
+      };
+      audio.onended = () => {
+        setCurrentIndex((prev) => {
+          const pl = playlistRef.current;
+          const next = (prev + 1) % Math.max(pl.length, 1);
+          if (pl[next]) setTimeout(() => playWithDirectMode(pl[next]), 200);
+          return next;
+        });
+      };
+      audio.onerror = () => {
+        isDirectModeRef.current = false;
+        setIsPlaying(false);
+      };
+
+      await audio.play();
+      setIsPlaying(true);
+      setCurrentTitle(data.title || '재생 중...');
+      return true;
+    } catch {
+      return false;
+    } finally {
+      setIsLoadingStream(false);
+    }
+  }, [setIsPlaying, setCurrentTitle]);
 
   const initPlayer = useCallback(() => {
     if (!containerRef.current || playerRef.current) return;
@@ -72,7 +124,39 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
       width: '1',
       playerVars: { autoplay: 0, controls: 0, playsinline: 1 },
       events: {
-        onReady: () => setIsReady(true),
+        onReady: () => {
+          const player = playerRef.current!;
+          const { settings: s } = useStore.getState();
+          player.setVolume(s.bgm.volume);
+
+          // 직접 모드일 때 audioRef로 위임하도록 패치 — page.tsx 덕킹 코드 변경 불필요
+          const origSetVol = player.setVolume.bind(player);
+          const origGetVol = player.getVolume.bind(player);
+          const origGetState = player.getPlayerState.bind(player);
+
+          (player as unknown as Record<string, unknown>).setVolume = (v: number) => {
+            if (isDirectModeRef.current && audioRef.current) {
+              audioRef.current.volume = Math.max(0, Math.min(100, v)) / 100;
+            } else {
+              origSetVol(v);
+            }
+          };
+          (player as unknown as Record<string, unknown>).getVolume = () => {
+            if (isDirectModeRef.current && audioRef.current) {
+              return Math.round(audioRef.current.volume * 100);
+            }
+            return origGetVol();
+          };
+          (player as unknown as Record<string, unknown>).getPlayerState = () => {
+            if (isDirectModeRef.current) {
+              if (!audioRef.current?.src) return -1;
+              return audioRef.current.paused ? 2 : 1;
+            }
+            return origGetState();
+          };
+
+          setIsReady(true);
+        },
         onStateChange: (e: { data: number }) => {
           const YT = window.YT;
           const playing = e.data === YT.PlayerState.PLAYING;
@@ -137,54 +221,91 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
     };
   }, [initPlayer, playerRef]);
 
-  const handlePlay = () => {
+  const stopDirectMode = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.ontimeupdate = null;
+      audioRef.current.onended = null;
+      audioRef.current.onerror = null;
+      audioRef.current.src = '';
+    }
+    isDirectModeRef.current = false;
+  }, []);
+
+  const handlePlay = async () => {
     if (!isReady || !playerRef.current) return;
     if (playlist.length === 0) return;
-    const videoId = extractVideoId(playlist[currentIndex] || '');
-    if (videoId) {
-      playerRef.current.loadVideoById(videoId);
-      playerRef.current.playVideo();
+    const url = playlist[currentIndex] || '';
+    const ok = await playWithDirectMode(url);
+    if (!ok) {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        playerRef.current.loadVideoById(videoId);
+        playerRef.current.playVideo();
+      }
     }
   };
 
-  const handlePause = () => playerRef.current?.pauseVideo();
+  const handlePause = () => {
+    if (isDirectModeRef.current && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      playerRef.current?.pauseVideo();
+    }
+  };
+
   const handleStop = () => {
+    stopDirectMode();
     playerRef.current?.stopVideo();
     setCurrentTitle('');
     setCurrentTime(0);
     setDuration(0);
+    setIsPlaying(false);
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
       progressIntervalRef.current = null;
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (playlist.length === 0) return;
     const next = (currentIndex + 1) % playlist.length;
     setCurrentIndex(next);
-    const videoId = extractVideoId(playlist[next] || '');
-    if (videoId) {
-      playerRef.current?.loadVideoById(videoId);
-      playerRef.current?.playVideo();
+    const url = playlist[next] || '';
+    if (isDirectModeRef.current) {
+      stopDirectMode();
+      await playWithDirectMode(url);
+    } else {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        playerRef.current?.loadVideoById(videoId);
+        playerRef.current?.playVideo();
+      }
     }
   };
 
-  const handlePrev = () => {
+  const handlePrev = async () => {
     if (playlist.length === 0) return;
     const prev = (currentIndex - 1 + playlist.length) % playlist.length;
     setCurrentIndex(prev);
-    const videoId = extractVideoId(playlist[prev] || '');
-    if (videoId) {
-      playerRef.current?.loadVideoById(videoId);
-      playerRef.current?.playVideo();
+    const url = playlist[prev] || '';
+    if (isDirectModeRef.current) {
+      stopDirectMode();
+      await playWithDirectMode(url);
+    } else {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        playerRef.current?.loadVideoById(videoId);
+        playerRef.current?.playVideo();
+      }
     }
   };
 
   const handleVolume = (v: number) => {
     setVolumeState(v);
     updateBGMSettings({ volume: v });
-    if (playerRef.current) playerRef.current.setVolume(v);
+    playerRef.current?.setVolume(v); // 패치된 메서드 — 직접 모드에서도 동작
   };
 
   const handleAddUrl = () => {
@@ -200,14 +321,18 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
     }
   };
 
-  const handlePlayUrl = () => {
+  const handlePlayUrl = async () => {
     const url = urlInput.trim();
     if (!url || !isReady || !playerRef.current) return;
-    const videoId = extractVideoId(url);
-    if (videoId) {
-      playerRef.current.loadVideoById(videoId);
-      playerRef.current.playVideo();
-      setCurrentTitle('로딩 중...');
+    stopDirectMode();
+    const ok = await playWithDirectMode(url);
+    if (!ok) {
+      const videoId = extractVideoId(url);
+      if (videoId) {
+        playerRef.current.loadVideoById(videoId);
+        playerRef.current.playVideo();
+        setCurrentTitle('로딩 중...');
+      }
     }
   };
 
@@ -220,7 +345,12 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
       <div className="flex items-center gap-2">
         <span className="text-green-500 text-xl">♪</span>
         <h2 className="text-lg font-semibold text-gray-800">BGM 플레이어</h2>
-        {isPlaying && (
+        {isLoadingStream && (
+          <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full animate-pulse font-medium">
+            스트림 로딩 중...
+          </span>
+        )}
+        {isPlaying && !isLoadingStream && (
           <span className="ml-auto text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full animate-pulse font-medium">
             재생 중
           </span>
@@ -288,13 +418,21 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
           }}
           onMouseUp={(e) => {
             const val = Number((e.target as HTMLInputElement).value);
-            playerRef.current?.seekTo(val, true);
+            if (isDirectModeRef.current && audioRef.current) {
+              audioRef.current.currentTime = val;
+            } else {
+              playerRef.current?.seekTo(val, true);
+            }
             setCurrentTime(val);
             setIsSeeking(false);
           }}
           onTouchEnd={(e) => {
             const val = Number((e.target as HTMLInputElement).value);
-            playerRef.current?.seekTo(val, true);
+            if (isDirectModeRef.current && audioRef.current) {
+              audioRef.current.currentTime = val;
+            } else {
+              playerRef.current?.seekTo(val, true);
+            }
             setCurrentTime(val);
             setIsSeeking(false);
           }}
@@ -444,11 +582,15 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
 
                   {/* Play button / index */}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!isReady || !playerRef.current) return;
                       setCurrentIndex(idx);
-                      const vid = extractVideoId(url);
-                      if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                      stopDirectMode();
+                      const ok = await playWithDirectMode(url);
+                      if (!ok) {
+                        const vid = extractVideoId(url);
+                        if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                      }
                     }}
                     className={`shrink-0 w-6 h-6 rounded flex items-center justify-center text-xs font-bold transition-colors ${
                       isActive ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500 hover:bg-green-500 hover:text-white'
@@ -470,11 +612,15 @@ export function BGMPlayer({ onDuck, playerRef, isPlaying, setIsPlaying, currentT
                   {/* Title */}
                   <span
                     className={`text-xs truncate flex-1 ${isActive ? 'text-green-600 font-medium' : 'text-gray-600'}`}
-                    onClick={() => {
+                    onClick={async () => {
                       if (!isReady || !playerRef.current) return;
                       setCurrentIndex(idx);
-                      const vid = extractVideoId(url);
-                      if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                      stopDirectMode();
+                      const ok = await playWithDirectMode(url);
+                      if (!ok) {
+                        const vid = extractVideoId(url);
+                        if (vid) { playerRef.current.loadVideoById(vid); playerRef.current.playVideo(); }
+                      }
                     }}
                   >
                     {isActive && currentTitle ? currentTitle : (videoId ? `youtu.be/${videoId}` : url)}

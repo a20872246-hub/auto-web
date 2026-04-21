@@ -29,7 +29,7 @@ const PLANS = [
     period: '/월',
     yearlyPrice: '₩199,000/년 (2개월 무료)',
     color: 'green',
-    features: ['스탠다드 전체 기능', '원격 방송 (모바일)', '우선 고객 지원'],
+    features: ['스탠다드 전체 기능', '원격 방송 (모바일)', '지점 3개까지 등록', '우선 고객 지원'],
     disabled: [],
     recommended: true,
   },
